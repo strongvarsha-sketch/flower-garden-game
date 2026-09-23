@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flower Garden</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#173a2b">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#dff3e6; --bg2:#f0f9dc; --board:#b4d9c1; --tile:#d5eedd; --tile-hi:#bfe4cc;
+  --ink:#173a2b; --muted:#4d7866; --panel:#c9e7d3; --btn-bg:#d6336c; --btn-ink:#ffffff;
+  --weed:#6f7f5c; --gold:#b7791f; --overlay:rgba(23,58,43,.86);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10262e; --bg2:#173a40; --board:#0b1b21; --tile:#1d4a4c; --tile-hi:#28666a;
+    --ink:#eaf6ef; --muted:#8fb5b0; --panel:#163840; --btn-bg:#ffb627; --btn-ink:#241a00;
+    --weed:#8e9d7a; --gold:#ffd45c; --overlay:rgba(8,20,24,.88);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10262e; --bg2:#173a40; --board:#0b1b21; --tile:#1d4a4c; --tile-hi:#28666a;
+  --ink:#eaf6ef; --muted:#8fb5b0; --panel:#163840; --btn-bg:#ffb627; --btn-ink:#241a00;
+  --weed:#8e9d7a; --gold:#ffd45c; --overlay:rgba(8,20,24,.88);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;height:100%;color:var(--ink);
+  font-family:"Baloo 2","Noto Sans Devanagari","Mukta",system-ui,sans-serif;
+  background:var(--bg);
+  background-image:linear-gradient(180deg,var(--bg2),var(--bg));
+  background-attachment:fixed;
+  -webkit-text-size-adjust:100%;
+  touch-action:manipulation;
+}
+.app{
+  --bs:clamp(240px,min(calc(100vw - 28px),calc(100vh - 380px)),440px);
+  min-height:100%;max-width:480px;margin:0 auto;padding:10px 14px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+@supports (height:100dvh){.app{--bs:clamp(240px,min(calc(100vw - 28px),calc(100dvh - 380px)),440px)}}
+header{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-size:26px;line-height:1.1;font-weight:700}
+.scores{display:flex;gap:14px}
+.scores div{display:flex;flex-direction:column;align-items:flex-end;line-height:1.05}
+.lbl{font-size:12px;color:var(--muted);font-weight:500}
+.scores b{font-size:22px;font-weight:700}
+.strip{display:flex;gap:6px;justify-content:center;width:100%}
+.col{width:40px;height:40px;padding:3px;border-radius:12px;background:var(--panel);opacity:.35;filter:grayscale(1)}
+.col.on{opacity:1;filter:none}
+.goal{margin:0;font-size:14px;color:var(--muted);text-align:center;min-height:20px}
+.boardwrap{position:relative;width:var(--bs);height:var(--bs)}
+.board{
+  width:100%;height:100%;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);
+  gap:6px;padding:8px;border-radius:24px;background:var(--board);
+}
+.cell{
+  border:0;border-radius:16px;background:var(--tile);padding:5%;margin:0;min-width:0;min-height:0;
+  display:grid;place-items:center;cursor:default;-webkit-tap-highlight-color:transparent;
+  transition:background .12s;
+}
+.cell.empty{cursor:pointer}
+.cell.empty:active{background:var(--tile-hi)}
+.cell:focus-visible,.holdbtn:focus-visible,.side button:focus-visible,.again:focus-visible{outline:3px solid var(--btn-bg);outline-offset:2px}
+.f{display:block;width:100%;height:100%}
+.f svg{display:block;width:100%;height:100%}
+.f.pop{animation:pop .22s ease-out}
+.f.bloom{animation:bloom .42s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{0%{transform:scale(.3)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes bloom{0%{transform:scale(.4) rotate(-20deg)}55%{transform:scale(1.25) rotate(6deg)}100%{transform:scale(1) rotate(0)}}
+.toast{
+  position:absolute;left:50%;top:-6px;transform:translate(-50%,-100%);
+  background:var(--btn-bg);color:var(--btn-ink);padding:4px 14px;border-radius:999px;
+  font-weight:700;font-size:15px;opacity:0;pointer-events:none;white-space:nowrap;
+}
+.toast.show{animation:toast 1.8s ease-out}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,-70%)}12%{opacity:1;transform:translate(-50%,-100%)}80%{opacity:1}100%{opacity:0}}
+.over{
+  position:absolute;inset:0;border-radius:24px;background:var(--overlay);color:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:16px;
+}
+.over[hidden]{display:none}
+.over h2{margin:0;font-size:28px}
+.over p{margin:0;font-size:17px}
+.again{
+  margin-top:10px;border:0;border-radius:999px;padding:10px 26px;font:inherit;font-size:18px;font-weight:700;
+  background:var(--btn-bg);color:var(--btn-ink);cursor:pointer;
+}
+.tray{width:100%;display:flex;gap:10px;align-items:stretch;justify-content:center}
+.box{
+  width:92px;padding:6px 8px 8px;border-radius:18px;background:var(--panel);border:0;color:var(--ink);
+  font:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.holdbtn{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.big{width:56px;height:56px;display:grid;place-items:center}
+.plus{font-size:34px;color:var(--muted);line-height:1}
+.side{display:flex;flex-direction:column;gap:8px;justify-content:center}
+.side button{
+  border:0;border-radius:999px;padding:8px 16px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;
+  background:var(--btn-bg);color:var(--btn-ink);
+}
+.side button.quiet{background:var(--panel);color:var(--ink);font-weight:500}
+.help{margin:2px 0 0;max-width:34em;font-size:13px;line-height:1.45;color:var(--muted);text-align:center}
+@media (prefers-reduced-motion: reduce){.f.pop,.f.bloom,.toast.show{animation:none}.toast.show{opacity:1;transform:translate(-50%,-100%)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Flower Garden</h1>
+    <div class="scores">
+      <div><span class="lbl">Score</span><b id="score">0</b></div>
+      <div><span class="lbl">Best</span><b id="best">0</b></div>
+    </div>
+  </header>
+  <section class="strip" id="strip" aria-label="Flower collection"></section>
+  <p class="goal" id="goal"></p>
+  <div class="boardwrap">
+    <div class="board" id="board"></div>
+    <div class="toast" id="toast" role="status"></div>
+    <div class="over" id="over" hidden>
+      <h2>Garden is full!</h2>
+      <p id="overScore"></p>
+      <p id="overFlower"></p>
+      <button class="again" id="again" type="button">Play again</button>
+    </div>
+  </div>
+  <section class="tray">
+    <div class="box"><span class="lbl">Next</span><div class="big" id="next"></div></div>
+    <button class="box holdbtn" id="hold" type="button" aria-label="Swap held flower"><span class="lbl">Hold</span><div class="big" id="holdv"></div></button>
+    <div class="side">
+      <button id="new" type="button">New game</button>
+      <button id="snd" class="quiet" type="button">Sound: On</button>
+    </div>
+  </section>
+  <p class="help">Tap an empty spot to plant a flower. Match 3 or more of the same flower to merge them into the next bloom. Merging next to a weed clears it away.</p>
+</div>
+
+<script>
+(function(){
+"use strict";
+var N=5, MAX=7, WEED=-1;
+var NAMES=["","Bud","Marigold","Hibiscus","Rose","Lotus","Sunflower","Golden Lotus"];
+
+/* ---------- flower drawings ---------- */
+function ell(n,d,rx,ry,fill,stroke,rot){
+  var s="";
+  for(var i=0;i<n;i++){
+    var a=(rot||0)+i*360/n;
+    s+='<ellipse cx="50" cy="'+(50-d)+'" rx="'+rx+'" ry="'+ry+'" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.5" transform="rotate('+a+' 50 50)"/>';
+  }
+  return s;
+}
+function pt(n,len,w,fill,stroke,rot){
+  var s="",tip=50-len;
+  for(var i=0;i<n;i++){
+    var a=(rot||0)+i*360/n;
+    s+='<path d="M50 50 C '+(50-w)+' '+(50-len*0.45)+', '+(50-w*0.6)+' '+(tip+6)+', 50 '+tip+' C '+(50+w*0.6)+' '+(tip+6)+', '+(50+w)+' '+(50-len*0.45)+', 50 50Z" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.5" stroke-linejoin="round" transform="rotate('+a+' 50 50)"/>';
+  }
+  return s;
+}
+function circ(r,fill,stroke,cx,cy){
+  return '<circle cx="'+(cx||50)+'" cy="'+(cy||50)+'" r="'+r+'" fill="'+fill+'"'+(stroke?' stroke="'+stroke+'" stroke-width="1.5"':'')+'/>';
+}
+function dots(n,d,r,fill,rot){
+  var s="";
+  for(var i=0;i<n;i++){
+    var a=((rot||0)+i*360/n)*Math.PI/180;
+    s+=circ(r,fill,null,(50+Math.sin(a)*d).toFixed(1),(50-Math.cos(a)*d).toFixed(1));
+  }
+  return s;
+}
+var inner=[null,
+  /* 1 कळी */
+  '<path d="M50 90 C50 74 50 62 50 54" stroke="#3f8f4f" stroke-width="5" fill="none" stroke-linecap="round"/>'+
+  '<ellipse cx="36" cy="68" rx="14" ry="6.5" fill="#5cb96e" stroke="#3f8f4f" stroke-width="1.5" transform="rotate(-28 36 68)"/>'+
+  '<ellipse cx="64" cy="63" rx="14" ry="6.5" fill="#5cb96e" stroke="#3f8f4f" stroke-width="1.5" transform="rotate(28 64 63)"/>'+
+  '<path d="M50 20 C64 30 64 50 50 58 C36 50 36 30 50 20Z" fill="#a6e58a" stroke="#3f8f4f" stroke-width="2"/>',
+  /* 2 झेंडू */
+  ell(12,27,8,15,"#ffa62b","#c76a00",0)+ell(10,17,7,11,"#ffc24d","#c76a00",18)+circ(10,"#e07b00","#a85500"),
+  /* 3 जास्वंद */
+  ell(5,24,17,23,"#ff4d5e","#a8172b",0)+circ(7,"#7a0f1f")+
+  '<path d="M50 50 L64 26" stroke="#ffe066" stroke-width="3" stroke-linecap="round"/>'+circ(4.5,"#ffd23f","#b8860b",64,26)+circ(3,"#ffd23f",null,58,32),
+  /* 4 गुलाब */
+  ell(7,29,13,18,"#ffa0b8","#b83b5e",0)+ell(6,20,11,14,"#ff6f91","#b83b5e",20)+ell(5,11,8,10,"#e8467c","#8f2148",40)+circ(5,"#c9184a"),
+  /* 5 कमळ */
+  pt(8,42,16,"#ffd9e8","#d6457f",0)+pt(8,34,13,"#ffb3d1","#d6457f",22.5)+pt(6,24,10,"#ff8fbf","#c2306b",0)+circ(6,"#ffd23f","#b8860b"),
+  /* 6 सूर्यफूल */
+  pt(18,46,9,"#ffd23f","#c98a00",0)+pt(18,40,8,"#ffc107","#c98a00",10)+circ(19,"#6b3f1d","#4a2a10")+dots(10,12,2.2,"#a0682f",0)+dots(6,5.5,2,"#a0682f",30),
+  /* 7 सोनेरी कमळ */
+  circ(47,"#ffd45c",null)+'<circle cx="50" cy="50" r="47" fill="#ffd45c" opacity=".55"/>'+
+  pt(8,42,17,"#fff0b8","#b8860b",0)+pt(8,34,14,"#ffd45c","#b8860b",22.5)+pt(6,24,11,"#ffb81f","#a56d00",0)+circ(7,"#fff6d0","#b8860b")+
+  circ(2.2,"#fff",null,20,22)+circ(1.8,"#fff",null,82,30)+circ(2,"#fff",null,78,80)+circ(1.6,"#fff",null,22,76)
+];
+var FL=[null];
+for(var l=1;l<=MAX;l++){FL[l]='<svg viewBox="0 0 100 100" aria-hidden="true">'+inner[l]+'</svg>';}
+var WEEDSVG='<svg viewBox="0 0 100 100" aria-hidden="true"><g stroke="var(--weed)" stroke-width="6" fill="none" stroke-linecap="round">'+
+  '<path d="M28 82 C24 62 36 46 28 26"/><path d="M50 84 C54 62 44 44 56 22"/><path d="M72 82 C76 64 62 52 74 32"/></g>'+
+  '<path d="M20 86 H80" stroke="var(--weed)" stroke-width="7" stroke-linecap="round"/></svg>';
+
+function fh(l,cls){
+  if(!l) return "";
+  return '<span class="f '+(cls||"")+'">'+(l===WEED?WEEDSVG:FL[l])+'</span>';
+}
+
+/* ---------- state ---------- */
+var grid,cur,hold,score,moves,best=0,maxLevel,over,fx={},sound=true,ac=null;
+try{best=+localStorage.getItem("fb_best")||0;}catch(e){best=0;}
+
+function $(id){return document.getElementById(id);}
+function rnd(){
+  var r=Math.random();
+  return r<0.72?1:(r<0.94?2:3);
+}
+function nbrs(i){
+  var r=Math.floor(i/N),c=i%N,o=[];
+  if(r>0)o.push(i-N);
+  if(r<N-1)o.push(i+N);
+  if(c>0)o.push(i-1);
+  if(c<N-1)o.push(i+1);
+  return o;
+}
+function group(i){
+  var L=grid[i],seen={},q=[i],out=[];
+  seen[i]=1;
+  while(q.length){
+    var x=q.pop();out.push(x);
+    nbrs(x).forEach(function(k){
+      if(!seen[k]&&grid[k]===L){seen[k]=1;q.push(k);}
+    });
+  }
+  return out;
+}
+function empties(){
+  var e=[];
+  for(var i=0;i<N*N;i++)if(grid[i]===0)e.push(i);
+  return e;
+}
+
+/* ---------- sound ---------- */
+function tone(f,d,type,v){
+  if(!sound)return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    var o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;
+    o.type=type||"sine";o.frequency.value=f;
+    g.gain.setValueAtTime(v||0.06,t);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+d);
+  }catch(e){}
+}
+
+/* ---------- game ---------- */
+function newGame(){
+  grid=[];for(var i=0;i<N*N;i++)grid.push(0);
+  score=0;moves=0;maxLevel=1;over=false;hold=0;fx={};
+  cur=rnd();
+  grid[Math.floor(Math.random()*N*N)]=WEED;
+  render();
+}
+function spawnWeed(){
+  var e=empties();
+  if(e.length>2){
+    var k=e[Math.floor(Math.random()*e.length)];
+    grid[k]=WEED;fx[k]="pop";
+  }
+}
+function toast(t){
+  var e=$("toast");e.textContent=t;
+  e.classList.remove("show");void e.offsetWidth;e.classList.add("show");
+}
+function place(i){
+  if(over||grid[i]!==0)return;
+  grid[i]=cur;moves++;fx={};fx[i]="pop";
+  tone(260,0.08,"triangle",0.07);
+  var chain=0,fresh=0,idx=i;
+  while(true){
+    var L=grid[idx],g=group(idx);
+    if(g.length<3)break;
+    chain++;
+    g.forEach(function(j){grid[j]=0;});
+    var weeds={};
+    g.forEach(function(j){nbrs(j).forEach(function(k){if(grid[k]===WEED)weeds[k]=1;});});
+    Object.keys(weeds).forEach(function(k){grid[k]=0;score+=25;});
+    if(L>=MAX){
+      score+=1000*chain;
+      toast("Golden Lotus! +"+(1000*chain));
+      tone(880,0.3,"sine",0.08);
+      break;
+    }
+    grid[idx]=L+1;fx[idx]="bloom";
+    score+=g.length*L*10*chain;
+    tone(330+L*70,0.18,"sine",0.08);
+    (function(f){setTimeout(function(){tone(f,0.2,"sine",0.06);},90);})(440+L*90);
+    if(L+1>maxLevel){maxLevel=L+1;fresh=L+1;}
+  }
+  if(fresh)toast("New flower: "+NAMES[fresh]+"!");
+  else if(chain>1)toast("Chain x "+chain+"!");
+  cur=rnd();
+  if(moves%(moves>40?4:5)===0)spawnWeed();
+  if(empties().length===0)over=true;
+  render();
+}
+function swap(){
+  if(over)return;
+  if(!hold){hold=cur;cur=rnd();}
+  else{var t=cur;cur=hold;hold=t;}
+  tone(200,0.06,"triangle",0.05);
+  render();
+}
+
+/* ---------- render ---------- */
+var board=$("board"),cells=[];
+for(var i=0;i<N*N;i++){
+  var b=document.createElement("button");
+  b.type="button";b.className="cell empty";b.dataset.i=i;
+  board.appendChild(b);cells.push(b);
+}
+board.addEventListener("click",function(e){
+  var b=e.target.closest(".cell");
+  if(b)place(+b.dataset.i);
+});
+$("hold").addEventListener("click",swap);
+$("new").addEventListener("click",newGame);
+$("again").addEventListener("click",newGame);
+$("snd").addEventListener("click",function(){
+  sound=!sound;
+  this.textContent="Sound: "+(sound?"On":"Off");
+});
+
+function render(){
+  if(score>best){
+    best=score;
+    try{localStorage.setItem("fb_best",String(best));}catch(e){}
+  }
+  for(var i=0;i<N*N;i++){
+    var g=grid[i],c=cells[i];
+    c.className="cell"+(g===0?" empty":"");
+    c.innerHTML=fh(g,fx[i]||"");
+    c.setAttribute("aria-label",g===0?"Empty":(g===WEED?"Weed":NAMES[g]));
+    c.disabled=(g!==0)||over;
+  }
+  fx={};
+  $("score").textContent=score;
+  $("best").textContent=best;
+  $("next").innerHTML=fh(cur);
+  $("holdv").innerHTML=hold?fh(hold):'<span class="plus">+</span>';
+  var s="";
+  for(var l=1;l<=MAX;l++){
+    s+='<div class="col'+(l<=maxLevel?" on":"")+'" title="'+NAMES[l]+'">'+fh(l)+'</div>';
+  }
+  $("strip").innerHTML=s;
+  $("goal").textContent=maxLevel<MAX
+    ?"Next goal: "+NAMES[maxLevel+1]
+    :"All flowers unlocked! Merge Golden Lotuses for huge scores";
+  $("over").hidden=!over;
+  if(over){
+    $("overScore").textContent="Your score: "+score;
+    $("overFlower").textContent="Biggest flower: "+NAMES[maxLevel];
+  }
+}
+newGame();
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
